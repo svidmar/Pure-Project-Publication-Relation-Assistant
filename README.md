@@ -1,7 +1,7 @@
 
 # Pure Project-Publication Relation Assistant
 
-This Streamlit app helps identify and semi-automatically **bulk relate publications to projects** in Elsevier's Pure using **project identifiers** and **DOIs**.  
+[This Streamlit app](https://pure-project-publication-relation-assistant.streamlit.app/) helps identify and semi-automatically **bulk relate publications to projects** in Elsevier's Pure using **project identifiers** and **DOIs**.  
 It supports a wide range of identifier types, such as _External Project ID_, _Contract ID_, and _Horizon ID_ — based on your local Pure configuration.
 
 ## 🔍 What It Does
