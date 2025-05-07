@@ -24,7 +24,7 @@ With this assistant, you can semi-automatically set these relations inside Pure,
    (Both comma `,` and semicolon `;` separators are supported.)
 2. **Run the tool in `Dry run` mode** to preview matches and issues.
 3. **Filter the result** to remove ambiguous or unmatched rows.
-4. **Re-upload the cleaned file** and run again with `Dry run` disabled to apply the changes.
+4. **Re-upload the cleaned file** and run again with `Dry run` disabled to apply the changes. (Cleaning the file speeds up the writeback process)
 
 ## 🛠️ Features
 
