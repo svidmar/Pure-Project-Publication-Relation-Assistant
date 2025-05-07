@@ -178,7 +178,7 @@ if uploaded_file:
 
 if "matched_df" in st.session_state:
     df = st.session_state["matched_df"]
-    st.subheader("Project-Publication releations")
+    st.subheader("Project-Publication relations")
     sorted_df = df.sort_values(by="link", ascending=False)
     st.dataframe(sorted_df, use_container_width=True)
 
