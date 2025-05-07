@@ -32,7 +32,7 @@ This tool helps identify and semi-automatically **bulk relate publications to pr
    - Review the matching results.
    - Download the resulting table.
    - **Filter out rows** where no linking is needed or where there are ambiguous matches.
-5. **Re-upload the cleaned file** (with only "ready to link" rows).
+5. **Re-upload the cleaned file** (with only "ready to link" rows - it speeds up the writeback).
 6. Disable dry run and click **"Confirm and Link in Pure"** to write the new relations to Pure.
 
 Use at your own risk 😉
@@ -82,7 +82,7 @@ if uploaded_file:
         df["matched_identifier_label"] = None
         df["identifier_warning"] = None
 
-        st.info("Looking up projects and publications...")
+        st.info("Looking up projects and publications in Pure...")
 
         for idx, row in df.iterrows():
             project_id_value = str(row.get("projectid", "")).strip()
