@@ -68,7 +68,11 @@ dry_run = st.checkbox("Dry run mode", value=True)
 if uploaded_file:
     content = uploaded_file.read().decode("utf-8")
     sep = "," if content.count(",") >= content.count(";") else ";"
-    df = pd.read_csv(io.StringIO(content), sep=sep)
+    
+    # Force projectid to be string to preserve leading zeroes
+    df = pd.read_csv(io.StringIO(content), sep=sep, dtype={"projectid": str})
+    
+    # Normalize column names
     df.columns = [col.strip().lower() for col in df.columns]
 
     if st.button("Start Matching"):
