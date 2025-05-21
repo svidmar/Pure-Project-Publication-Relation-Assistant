@@ -68,10 +68,10 @@ dry_run = st.checkbox("Dry run mode", value=True)
 if uploaded_file:
     content = uploaded_file.read().decode("utf-8")
     sep = "," if content.count(",") >= content.count(";") else ";"
-    
-    # Force projectid to be string to preserve leading zeroes
-    df = pd.read_csv(io.StringIO(content), sep=sep, dtype={"projectid": str})
-    
+
+    # Load all columns as string to preserve leading zeroes
+    df = pd.read_csv(io.StringIO(content), sep=sep, dtype=str)
+
     # Normalize column names
     df.columns = [col.strip().lower() for col in df.columns]
 
