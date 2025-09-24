@@ -14,7 +14,7 @@ st.markdown("""
 This tool helps identify and semi-automatically **bulk relate publications to projects** in Elsevier's Pure using **project identifiers** and **DOIs**. It supports a wide range of identifier types, such as *External Project ID*, *Contract ID*, and *Horizon ID* — based on the configured identifier types in Pure.
 
 #### 🔍 **What it does**
-- Looks up the project using the provided ProjectID (or just the Pure Project UUID).
+- Looks up the project using the provided **ProjectID** (or just the Pure Project UUID) — and now also supports **GrantID**.
 - Searches for the publication in Pure based on the DOI.
 - Flags existing relations and determines which are ready to be related.
 - Shows matched identifier type and flags ambiguous project matches.
@@ -27,7 +27,7 @@ This tool helps identify and semi-automatically **bulk relate publications to pr
 ### ✅ **Recommended Workflow**
 1. Input Pure **Base URL**
 2. Input valid **Pure API Key** with appropriate permissions
-3. **Upload a CSV** with at least two columns: `ProjectID` and `DOI` (supports both `,` and `;` separators).
+3. **Upload a CSV** with at least two columns: `ProjectID` **or** `GrantID`, and `DOI` (supports both `,` and `;` separators).
 4. **Run the tool once** in **dry run mode**:
    - Review the matching results.
    - Download the resulting table.
@@ -62,7 +62,7 @@ if idtype_resp.ok:
         label = item.get("term", {}).get("en_GB", uri)
         idtype_map[uri] = label
 
-uploaded_file = st.file_uploader("Upload CSV with ProjectID and DOI", type="csv")
+uploaded_file = st.file_uploader("Upload CSV with ProjectID or GrantID, and DOI", type="csv")
 dry_run = st.checkbox("Dry run mode", value=True)
 
 if uploaded_file:
@@ -76,6 +76,7 @@ if uploaded_file:
     df.columns = [col.strip().lower() for col in df.columns]
 
     if st.button("Start Matching"):
+        # Prepare result columns
         df["project_uuid"] = None
         df["publication_uuid"] = None
         df["project_title"] = None
@@ -85,13 +86,25 @@ if uploaded_file:
         df["matched_identifier_type_uri"] = None
         df["matched_identifier_label"] = None
         df["identifier_warning"] = None
+        df["input_id_source"] = None  # New: which column was used (ProjectID or GrantID)
 
         st.info("Looking up projects and publications in Pure...")
 
         for idx, row in df.iterrows():
-            project_id_value = str(row.get("projectid", "")).strip()
-            raw_doi = str(row.get("doi", "")).strip()
+            # Accept ProjectID or GrantID (prefer ProjectID if both present)
+            pid = str(row.get("projectid", "") or "").strip()
+            gid = str(row.get("grantid", "") or "").strip()
+            project_id_value = pid if pid else gid
+            input_source = "ProjectID" if pid else ("GrantID" if gid else None)
+            df.at[idx, "input_id_source"] = input_source
 
+            # Validate presence of an ID
+            if not project_id_value:
+                df.at[idx, "status"] = "No ProjectID or GrantID provided"
+                continue
+
+            # DOI normalization
+            raw_doi = str(row.get("doi", "")).strip()
             if raw_doi.startswith("http"):
                 parsed = urlparse(raw_doi)
                 doi = parsed.path.lstrip("/")
@@ -102,6 +115,7 @@ if uploaded_file:
             found_project = None
             match_count = 0
 
+            # If the ID provided is a UUID, try direct fetch
             try:
                 uuidlib.UUID(project_id_value, version=4)
                 project_uuid = project_id_value
@@ -111,6 +125,7 @@ if uploaded_file:
             except ValueError:
                 pass
 
+            # Otherwise, search in identifiers
             if not found_project:
                 search_payload = {"searchString": project_id_value}
                 proj_resp = requests.post(f"{base_url}/ws/api/projects/search", headers=headers, json=search_payload)
@@ -126,15 +141,16 @@ if uploaded_file:
                                     df.at[idx, "matched_identifier_type_uri"] = id_type_uri
                                     df.at[idx, "matched_identifier_label"] = idtype_map.get(id_type_uri, id_type_uri)
                     if match_count > 1:
-                        df.at[idx, "identifier_warning"] = "⚠ Multiple matches for ProjectID"
+                        df.at[idx, "identifier_warning"] = f"⚠ Multiple matches for {input_source}"
 
             if not found_project:
                 df.at[idx, "status"] = "Project not found"
                 continue
 
             df.at[idx, "project_uuid"] = project_uuid
-            df.at[idx, "project_title"] = found_project.get("title", {}).get("en_GB", "")
+            df.at[idx, "project_title"] = found_project.get("title", {}).get("en_GB", "") or found_project.get("title", {}).get("value", "")
 
+            # Find publication by DOI
             try:
                 pub_resp = requests.post(
                     f"{base_url}/ws/api/research-outputs/search",
@@ -165,6 +181,7 @@ if uploaded_file:
             df.at[idx, "publication_uuid"] = pub_uuid
             df.at[idx, "publication_title"] = found_pub.get("title", {}).get("value", "")
 
+            # Check existing relations to avoid overwriting/removing
             full_proj = requests.get(f"{base_url}/ws/api/projects/{project_uuid}", headers=headers).json()
             existing_outputs = [
                 ro["researchOutput"]["uuid"]
@@ -190,7 +207,7 @@ if "matched_df" in st.session_state:
 
     if not to_link_df.empty:
         st.subheader("Summary of Pending Changes")
-        st.dataframe(to_link_df[["project_title", "publication_title", "matched_identifier_label"]], use_container_width=True)
+        st.dataframe(to_link_df[["project_title", "publication_title", "matched_identifier_label", "input_id_source"]], use_container_width=True)
 
         if st.button("Confirm and Link in Pure"):
             with st.spinner("Writing links to Pure..."):
@@ -246,7 +263,6 @@ if "matched_df" in st.session_state:
             st.dataframe(log_df, use_container_width=True)
     else:
         st.info("No valid link candidates to process.")
-
 
 st.markdown(
     """
